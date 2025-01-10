@@ -74,7 +74,7 @@ class TrackedData(torch.utils.data.Dataset):
         # driven image
         t_record = {}
         t_image = self._lmdb_engine[frame_key].float() / 255.0
-        for key in ['bbox', 'posecode', 'shapecode', 'expcode', 'eyecode', 'transform_matrix']:
+        for key in ['bbox', 'posecode', 'shapecode', 'expcode', 'eyecode', 'transform_matrix', 'landmarks', 'blend', 'matrix']: 
             t_record[key] = torch.tensor(self._data[frame_key][key]).float()
         t_points = self.flame_model(
             shape_params=t_record['shapecode'][None], pose_params=t_record['posecode'][None],
@@ -83,6 +83,9 @@ class TrackedData(torch.utils.data.Dataset):
         one_record = {
             'f_image': f_image, 'f_shape': f_shape, 'f_planes': f_planes, 
             't_image': t_image, 't_points': t_points, 't_transform': t_record['transform_matrix'], 't_bbox': t_record['bbox'], 
+            't_blend': t_record['t_blend'],
+            't_landmarks': t_record['t_landmarks'],
+            't_matrix': t_record['t_matrix'],
             'infos': {'f_key':f_key, 't_key':frame_key},
         }
         return one_record
@@ -166,6 +169,9 @@ class DriverData(torch.utils.data.Dataset):
         one_data = {
             'f_image': deepcopy(self.f_image), 'f_planes': deepcopy(self.f_planes), 
             't_image': t_image, 't_points': t_points, 't_transform': this_record['transform_matrix'], 
+            't_blend': this_record['t_blend'],
+            't_landmarks': this_record['t_landmarks'],
+            't_matrix': this_record['t_matrix'],
             'infos': {'t_key':frame_key},
         }
         return one_data
