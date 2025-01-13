@@ -74,13 +74,13 @@ class Unet_rgb(nn.Module):
         # embed()  
         return image#, out_rgbs
 class ResBlock(nn.Module):
-    
+    '''
     Residual block with bilinear upsampling/downsampling.
     Args:
         in_channels (int): Channel number of the input.
         out_channels (int): Channel number of the output.
         mode (str): Upsampling/downsampling mode. Options: down | up. Default: down.
-    
+    '''
     def __init__(self, in_channels, out_channels, mode='down'):
         super(ResBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, in_channels, 3, 1, 1)
