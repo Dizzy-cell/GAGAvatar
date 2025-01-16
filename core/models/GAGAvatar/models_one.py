@@ -129,13 +129,13 @@ class GAGAvatar_spade32(nn.Module):
 
         # 
         # local part
-        gs_params_l0 = self.gs_generator_l0(f_feature0, plane_direnc)
-        gs_params_l1 = self.gs_generator_l1(f_feature0, plane_direnc)
-        gs_params_l0['xyz'] = f_planes['plane_points'] + gs_params_l0['positions'] * f_planes['plane_dirs'][:, None]
-        gs_params_l1['xyz'] = f_planes['plane_points'] + -1 * gs_params_l1['positions'] * f_planes['plane_dirs'][:, None]
-        gs_params = {
-            k:torch.cat([gs_params_g[k], gs_params_l0[k], gs_params_l1[k]], dim=1) for k in gs_params_g.keys()
-        }
+        # gs_params_l0 = self.gs_generator_l0(f_feature0, plane_direnc)
+        # gs_params_l1 = self.gs_generator_l1(f_feature0, plane_direnc)
+        # gs_params_l0['xyz'] = f_planes['plane_points'] + gs_params_l0['positions'] * f_planes['plane_dirs'][:, None]
+        # gs_params_l1['xyz'] = f_planes['plane_points'] + -1 * gs_params_l1['positions'] * f_planes['plane_dirs'][:, None]
+        # gs_params = {
+        #     k:torch.cat([gs_params_g[k], gs_params_l0[k], gs_params_l1[k]], dim=1) for k in gs_params_g.keys()
+        # }
         gen_images = render_gaussian(
             gs_params=gs_params, cam_matrix=t_transform, cam_params=self.cam_params
         )['images']
@@ -143,7 +143,7 @@ class GAGAvatar_spade32(nn.Module):
         results = {
             't_image':t_image, 't_bbox':t_bbox, 't_points': t_points, 
             'pre_points': pred_points,
-            'p_points': torch.cat([gs_params_l0['xyz'], gs_params_l1['xyz']], dim=1),
+            #'p_points': torch.cat([gs_params_l0['xyz'], gs_params_l1['xyz']], dim=1),
             'gen_image': gen_images[:, :3], 'sr_gen_image': sr_gen_images
         }
         if mesh:
@@ -177,14 +177,28 @@ class GAGAvatar_spade32(nn.Module):
             }
             self._gs_params = gs_params
             # xyz: 5023 + 87616 + 87616
-        gs_params = self._gs_params
+        #gs_params = self._gs_params
         t_image, t_points, t_transform = batch['t_image'], batch['t_points'], batch['t_transform']
         
         #gs_params['xyz'][:, :5023] = t_points
         
         t_blend = batch['t_blend']
         pred_points = self.blendmodel(t_blend)
-        gs_params['xyz'][:, :5023] = pred_points
+        #gs_params['xyz'][:, :5023] = pred_points
+
+        times = 10
+        batch_size = pred_points.shape[0]
+        pred_points_repeat = pred_points.repeat(1, times, 1)
+        gs_params = {}
+        xyz_dynamic = self.gs_params_xyz[:, :5023 * times, :].expand(batch_size, -1, -1) * 0.01 + pred_points_repeat
+        xyz_static = self.gs_params_xyz[:, 5023 * times:, :].expand(batch_size, -1, -1) 
+        gs_params['xyz'] = torch.cat((xyz_dynamic, xyz_static), dim = 1)
+
+        gs_params['colors'] = torch.sigmoid(self.gs_params_colors).expand(batch_size, -1, -1)
+        gs_params['scales'] = torch.sigmoid(self.gs_params_scales).expand(batch_size, -1, -1) * 0.05
+        gs_params['opacities'] = torch.sigmoid(self.gs_params_opacites).expand(batch_size, -1, -1)
+
+        gs_params['rotations'] = nn.functional.normalize(self.gs_params_rotations).expand(batch_size, -1, -1)
         
         # print(102)
         # from IPython import embed 
